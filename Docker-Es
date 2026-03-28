@@ -163,4 +163,151 @@ Task 4: Create a container with tmpfs mount and verify it
 
 docker run -d -it --name tmpmount --mount type=tmpfs,destination=/app nginx:latest
 docker container inspect tmpmount
+====================================================
+DCA -Storage
+======================================================
 
+LAB 1: 
+Check Your Storage Driver
+docker info | grep -i "Storage Driver"
+Expected: Storage Driver: overlay2
+
+LAB 2: Change Storage Driver
+sudo systemctl stop docker
+sudo vi /etc/docker/daemon.json
+# add following lines
+{
+  "storage-driver": "overlay2"
+}
+sudo systemctl start docker
+docker info
+
+LAB 3: Install & Configure Devicemapper
+sudo yum install -y lvm2 device-mapper-persistent-data
+sudo vi /etc/docker/daemon.json
+# add 
+{
+  "storage-driver": "devicemapper"
+}
+
+sudo systemctl restart docker
+docker info
+
+LAB 4: Check Thin Pool
+lsblk
+lvs
+
+# use case : Loop-lvm → testing and  Direct-lvm → production
+
+
+LAB 5: Block Storage Simulation (Docker Volume)
+docker volume create db-data
+
+docker run -d -v db-data:/var/lib/mysql mysql
+
+LAB 6: Object Storage Simulation (Optional)
+S3, Azure Blob
+
+LAB 7: Inspect Layers
+docker pull nginx
+docker image inspect nginx
+cd /var/lib/docker/overlay2
+ls
+# Containers = Layers + Thin writable layer”
+
+LAB 8: Create & Use Volume
+
+docker volume create mydata
+docker volume inspect mydata
+docker run -it -v mydata:/app busybox
+echo "Hello DevOps" > /app/test.txt
+exit
+
+docker run -it -v mydata:/app busybox
+cat /app/test.txt
+
+LAB 9: Bind Mount
+
+mkdir /host-data
+docker run -it -v /host-data:/app busybox
+
+| Type       | Use         |
+| ---------- | ----------- |
+| Volume     | Production  |
+| Bind mount | Dev/testing |
+
+LAB 10: Check Usage
+
+LAB 10: Check Usage 
+docker system df
+docker system df -v
+
+LAB 11: Cleanup Commands
+#Remove stopped containers
+docker container prune
+
+#Remove unused images
+docker image prune
+
+#Remove everything unused
+docker system prune -a
+
+LAB 12: Remove Volumes
+docker volume prune
+
+LAB 13:Clean Build Cache
+docker builder prune
+# Aggressive Cleanup
+docker builder prune -a
+
+LAB 14 : Limit CPU, Memory & Storage for Docker Container
+--------------------------------------------------------
+Task 1: Limit CPU & Memory
+
+docker run -it --name resource-test --cpus="0.5" --memory="256m" busybox
+
+# --cpus="0.5" → container can use 50% of 1 CPU
+# --memory="256m" → max RAM = 256 MB
+
+docker inspect resource-test
+docker stats
+
+Task 2: Simulate High CPU Usage
+
+docker run -d --name cpu-test --cpus="0.5" busybox sh -c "while true; do :; done"
+
+docker stats
+
+Task 3: Simulate Memory Limit
+
+docker run -it --memory="100m" busybox
+
+# run inside the container
+dd if=/dev/zero of=/bigfile bs=1M count=200
+# Container will crash / OOM (Out of Memory)
+
+Task 4: Limit Storage (Writable Layer)
+docker run -it --storage-opt size=200M ubuntu
+
+# Test Storage Limit run inside the container
+fallocate -l 300M bigfile
+
+# The container  can only write 200 MB , Prevents disk exhaustion
+
+Task 5: Volume Size Control
+
+Option 1: Use LVM (Advanced)
+Create logical volume with fixed size
+Mount to Docker
+
+Option 2: Use Disk Partition
+mount -o size=500M tmpfs /mnt/limited
+
+docker run -it -v /mnt/limited:/data busybox
+
+Task 6: Combine Everything
+
+docker run -d --name prod-container --cpus="1" --memory="512m" --storage-opt size=300M nginx
+
+docker inspect prod-container
+docker stats
