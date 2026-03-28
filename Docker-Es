@@ -484,3 +484,94 @@ docker run -d -u root --name prometheus -p 9090:9090 -v prometheus_config:/etc/p
 go to web browser and access the prometheus web UI
 
 http://3.110.207.70:9090
+=================================================================
+Task 3 Docker images examples
+
+Create directory
+
+docker-test/
+│
+├── frontend/
+├── backend/
+├── auth/
+├── worker/
+
+
+1. ubuntu@DCA:~$ cat docker-test/frontend/Dockerfile
+# frontend/Dockerfile
+FROM nginx:latest
+COPY index.html /usr/share/nginx/html/index.html
+
+ubuntu@DCA:~$ cat docker-test/frontend/index.html
+<!-- frontend/index.html -->
+<h1>Corporate App - Frontend</h1>
+<p>Connected to Backend API</p>
+
+2. ubuntu@DCA:~$ cat docker-test/backend/Dockerfile
+# backend/Dockerfile
+FROM python:3.9
+WORKDIR /app
+COPY app.py .
+RUN pip install flask
+CMD ["python", "app.py"]
+
+ubuntu@DCA:~$ cat docker-test/backend/app.py
+# backend/app.py
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Backend API Running"
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+
+3. ubuntu@DCA:~$ cat docker-test/auth/Dockerfile
+# auth/Dockerfile
+FROM node:18
+WORKDIR /app
+COPY app.js .
+CMD ["node", "app.js"]
+
+ubuntu@DCA:~$ cat docker-test/auth/app.js
+// auth/app.js
+console.log("Auth Service Running (Login Simulation)");
+ubuntu@DCA:~$
+
+4.ubuntu@DCA:~$ cat docker-test/worker/Dockerfile
+# worker/Dockerfile
+FROM alpine:latest
+CMD ["sh", "-c", "while true; do echo Processing Orders...; sleep 5; done"]
+ubuntu@DCA:~$
+
+# now build an image
+docker build -t corp-frontend ./frontend
+
+docker build -t corp-backend ./backend
+
+docker build -t corp-auth ./auth
+
+docker build -t corp-worker ./worker
+
+# run a container
+
+# Frontend
+docker run -d -p 8080:80 --name frontend corp-frontend
+
+# Backend
+docker run -d -p 5000:5000 --name backend corp-backend
+
+# Auth
+docker run -d --name auth corp-auth
+
+# Worker
+docker run -d --name worker corp-worker
+
+# test container
+
+Frontend → http://localhost:8080
+Backend → http://localhost:5000
+docker logs worker
+docker logs auth
+
